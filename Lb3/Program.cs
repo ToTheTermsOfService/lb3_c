@@ -57,16 +57,31 @@ class Program
             Console.WriteLine(team.ToShortString());
         }
 
-        Console.WriteLine("\n=== TestCollections Demo ===");
-        Console.Write("Enter number of elements for TestCollections: ");
+        Console.WriteLine("\n=== Performance Comparison (Lab 4) ===");
+        Console.Write("Enter number of elements for performance test: ");
         int count;
         while (!int.TryParse(Console.ReadLine(), out count) || count <= 0)
         {
             Console.WriteLine("Invalid input. Please enter a positive integer.");
-            Console.Write("Enter number of elements for TestCollections: ");
+            Console.Write("Enter number of elements for performance test: ");
         }
 
-        TestCollections testCollections = new TestCollections(count);
-        testCollections.MeasureSearchTime();
+        // Тестування стандартних колекцій
+        Console.WriteLine("\n=== Standard Collections ===");
+        TestCollections standardTest = new TestCollections(count);
+        standardTest.MeasureSearchTime();
+
+        // Тестування immutable колекцій
+        Console.WriteLine("\n=== Immutable Collections ===");
+        ImmutableTestCollections immutableTest = new ImmutableTestCollections(count);
+        immutableTest.MeasureSearchTime();
+
+        // Тестування sorted колекцій
+        Console.WriteLine("\n=== Sorted Collections ===");
+        SortedTestCollections sortedTest = new SortedTestCollections(count);
+        sortedTest.MeasureSearchTime();
+
+        Console.WriteLine("\nPress any key to exit...");
+        Console.ReadKey();
     }
 }
