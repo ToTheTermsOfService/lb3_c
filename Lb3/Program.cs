@@ -5,68 +5,65 @@ class Program
 {
     static void Main()
     {
-        ResearchTeamCollection collection = new ResearchTeamCollection();
-        collection.AddDefaults();
+        Console.WriteLine("=== Research Team Collection with Events Demo ===");
 
-        ResearchTeam rt1 = new ResearchTeam("AI Lab", 10, "Artificial Intelligence", TimeFrame.TwoYears);
-        rt1.AddParticipants(new Person { FirstName = "John", LastName = "Doe", BirthDate = new DateTime(1980, 1, 1) });
-        rt1.AddPapers(new Paper { Title = "AI Advances", Author = new Person { FirstName = "John", LastName = "Doe", BirthDate = new DateTime(1980, 1, 1) }, PublishDate = DateTime.Now });
+        var collection1 = new ResearchTeamCollection { CollectionName = "Primary Collection" };
+        var collection2 = new ResearchTeamCollection { CollectionName = "Secondary Collection" };
 
-        ResearchTeam rt2 = new ResearchTeam("Bio Lab", 5, "Biology Research", TimeFrame.Long);
-        rt2.AddParticipants(
-            new Person { FirstName = "Alice", LastName = "Smith", BirthDate = new DateTime(1975, 5, 5) },
-            new Person { FirstName = "Bob", LastName = "Johnson", BirthDate = new DateTime(1985, 10, 10) }
+        var journal1 = new TeamsJournal();
+        var journal2 = new TeamsJournal();
+
+        Console.WriteLine("\nSetting up event subscriptions...");
+
+        collection1.ResearchTeamAdded += (sender, args) => journal1.HandleEvent(sender, args);
+        collection1.ResearchTeamInserted += (sender, args) => journal1.HandleEvent(sender, args);
+
+        collection1.ResearchTeamAdded += journal2.HandleEvent;
+        collection1.ResearchTeamInserted += journal2.HandleEvent;
+        collection2.ResearchTeamAdded += journal2.HandleEvent;
+        collection2.ResearchTeamInserted += journal2.HandleEvent;
+
+        Console.WriteLine("\nMaking changes to collections...");
+
+        Console.WriteLine("\n--- Modifying Primary Collection ---");
+        collection1.AddDefaults();
+
+        var aiTeam = new ResearchTeam("AI Lab", 10, "Artificial Intelligence", TimeFrame.TwoYears);
+        var bioTeam = new ResearchTeam("Bio Lab", 5, "Biology Research", TimeFrame.Long);
+
+        collection1.AddResearchTeams(aiTeam, bioTeam);
+        collection1.InsertAt(1, new ResearchTeam("New Team", 7, "New Research", TimeFrame.Year));
+        collection1.InsertAt(10, new ResearchTeam("Out of bounds", 99, "Edge Case", TimeFrame.Long));
+
+        Console.WriteLine("\n--- Modifying Secondary Collection ---");
+        collection2.AddResearchTeams(
+            new ResearchTeam("OrgA", 1, "TopicA", TimeFrame.Year),
+            new ResearchTeam("OrgB", 2, "TopicB", TimeFrame.TwoYears)
         );
-        rt2.AddPapers(
-            new Paper { Title = "Cell Biology", Author = new Person { FirstName = "Alice", LastName = "Smith", BirthDate = new DateTime(1975, 5, 5) }, PublishDate = DateTime.Now.AddMonths(-6) },
-            new Paper { Title = "Genetics", Author = new Person { FirstName = "Alice", LastName = "Smith", BirthDate = new DateTime(1975, 5, 5) }, PublishDate = DateTime.Now.AddMonths(-3) }
-        );
 
-        collection.AddResearchTeams(rt1, rt2);
+        collection2.InsertAt(0, new ResearchTeam("First Position", 3, "Important Research", TimeFrame.Long));
+        collection2.InsertAt(2, new ResearchTeam("Middle Position", 4, "Average Research", TimeFrame.Year));
 
-        Console.WriteLine("\nFull collection:");
-        Console.WriteLine(collection.ToString());
+        Console.WriteLine("\n--- Using indexer to modify element ---");
+        collection1[0] = new ResearchTeam("Replaced Team", 100, "Replacement Research", TimeFrame.TwoYears);
 
-        Console.WriteLine("\nShort info:");
-        Console.WriteLine(collection.ToShortList());
+        Console.WriteLine("\n=== Journal Results ===");
 
-        Console.WriteLine("\nSorted by registration number:");
-        collection.SortByRegNumber();
-        Console.WriteLine(collection.ToShortList());
+        Console.WriteLine("\nJournal 1 (Primary Collection only):");
+        Console.WriteLine(journal1);
 
-        Console.WriteLine("\nSorted by research topic:");
-        collection.SortByResearchTopic();
-        Console.WriteLine(collection.ToShortList());
+        Console.WriteLine("\nJournal 2 (Both collections):");
+        Console.WriteLine(journal2);
 
-        Console.WriteLine("\nSorted by publications count:");
-        collection.SortByPublicationsCount();
-        Console.WriteLine(collection.ToShortList());
+        Console.WriteLine("\n=== Final Collections State ===");
 
-        Console.WriteLine($"\nMin registration number: {collection.MinRegNumber}");
+        Console.WriteLine("\nPrimary Collection:");
+        Console.WriteLine(collection1.ToShortList());
 
-        Console.WriteLine("\nTeams with TwoYears duration:");
-        foreach (var team in collection.TwoYearsDurationTeams)
-        {
-            Console.WriteLine(team.ToShortString());
-        }
+        Console.WriteLine("\nSecondary Collection:");
+        Console.WriteLine(collection2.ToShortList());
 
-        Console.WriteLine("\nTeams grouped by participant count:");
-        var grouped = collection.NGroup(2);
-        foreach (var team in grouped)
-        {
-            Console.WriteLine(team.ToShortString());
-        }
-
-        Console.WriteLine("\n=== TestCollections Demo ===");
-        Console.Write("Enter number of elements for TestCollections: ");
-        int count;
-        while (!int.TryParse(Console.ReadLine(), out count) || count <= 0)
-        {
-            Console.WriteLine("Invalid input. Please enter a positive integer.");
-            Console.Write("Enter number of elements for TestCollections: ");
-        }
-
-        TestCollections testCollections = new TestCollections(count);
-        testCollections.MeasureSearchTime();
+        Console.WriteLine("\nDemo completed. Press any key to exit...");
+        Console.ReadKey();
     }
 }
