@@ -1,111 +1,246 @@
 ﻿using Lb3;
 using Lb3.Helpers;
 using System.Collections;
+using System.Text.Json;
 
-class ResearchTeam : Team, IEnumerable<Person>, IComparer<ResearchTeam>
+[Serializable]
+public class ResearchTeam : Team, IComparable<ResearchTeam>, IComparer<ResearchTeam>
 {
-    private string _researchTopic;
-    private TimeFrame _duration;
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        WriteIndented = true,
+        ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve
+    };
+
+    private string _topic;
+    private TimeFrame _timeFrame;
     private List<Person> _participants;
-    private List<Paper> _publications;
+    private List<Paper?> _publications;
 
-    public ResearchTeam(string org, int num, string topic, TimeFrame timeFrame)
-        : base(org, num)
+    public ResearchTeam(string organization, int registrationNumber, string topic, TimeFrame timeFrame)
+        : base(organization, registrationNumber)
     {
-        _researchTopic = topic;
-        _duration = timeFrame;
-        _participants = new List<Person>();
-        _publications = new List<Paper>();
+        Topic = topic;
+        TimeFrame = timeFrame;
+        Participants = [];
+        Publications = [];
     }
 
-    public ResearchTeam() : this("Default Org", 1, "Default Topic", TimeFrame.Year) { }
-
-    public string ResearchTopic => _researchTopic;
-    public TimeFrame Duration => _duration;
-    public List<Paper> Publications => _publications;
-    public List<Person> Participants => _participants;
-    public Team BaseTeam => new Team(Organization, RegNumber);
-    public Paper? LatestPublication => _publications.Count > 0 ? _publications[^1] : null;
-
-    public void AddPapers(params Paper[] papers)
+    public ResearchTeam() : this("Стандартна організація", 1, "Стандартна тема", TimeFrame.Year)
     {
-        _publications.AddRange(papers);
     }
+
+    public string Topic
+    {
+        get => _topic;
+        set => _topic = value;
+    }
+
+    public TimeFrame TimeFrame
+    {
+        get => _timeFrame;
+        set => _timeFrame = value;
+    }
+
+    public List<Person> Participants
+    {
+        get => _participants;
+        set => _participants = value;
+    }
+
+    public List<Paper?> Publications
+    {
+        get => _publications;
+        set => _publications = value;
+    }
+
+    public Team Team => new Team(Organization, RegistrationNumber);
 
     public void AddParticipants(params Person[] persons)
     {
-        _participants.AddRange(persons);
+        Participants.AddRange(persons);
     }
 
-    public override object DeepCopy()
+    public void AddPapers(params Paper[] papers)
     {
-        ResearchTeam copy = new ResearchTeam(Organization, RegNumber, _researchTopic, _duration)
+        if (papers == null || papers.Length == 0) return;
+        Publications.AddRange(papers);
+    }
+
+    public Paper? LatestPublication
+    {
+        get
         {
-            _participants = _participants.Select(p => (Person)p.DeepCopy()).ToList(),
-            _publications = _publications.Select(p => (Paper)p.DeepCopy()).ToList()
-        };
-        return copy;
+            return Publications.Count == 0 ? null : Publications.OrderByDescending(p => p?.PublicationDate).First();
+        }
     }
 
-    public override bool Equals(object? obj)
+    public bool this[TimeFrame timeFrame] => TimeFrame == timeFrame;
+
+    public new object DeepCopy()
     {
-        if (obj is not ResearchTeam other) return false;
-        return base.Equals(other) &&
-               _researchTopic == other._researchTopic &&
-               _duration == other._duration &&
-               _participants.SequenceEqual(other._participants) &&
-               _publications.SequenceEqual(other._publications);
+        try
+        {
+            var jsonString = JsonSerializer.Serialize(this, JsonSerializerOptions);
+            return JsonSerializer.Deserialize<ResearchTeam>(jsonString, JsonSerializerOptions)!;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating deep copy: {ex.Message}");
+            throw;
+        }
     }
 
-    public override int GetHashCode()
+    public bool Save(string? filename)
     {
-        return HashCode.Combine(base.GetHashCode(), _researchTopic, _duration, _participants, _publications);
+        if (filename is null) return false;
+        try
+        {
+            var jsonString = JsonSerializer.Serialize(this, JsonSerializerOptions);
+            File.WriteAllText(filename, jsonString);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving to file: {ex.Message}");
+            return false;
+        }
+    }
+
+    public bool Load(string? filename)
+    {
+        if (filename is null) return false;
+        if (!File.Exists(filename))
+        {
+            Console.WriteLine("File does not exist!");
+            return false;
+        }
+
+        try
+        {
+            var jsonString = File.ReadAllText(filename);
+
+            var temp = JsonSerializer.Deserialize<ResearchTeam>(jsonString, JsonSerializerOptions);
+
+            if (temp == null) return false;
+
+            Organization = temp.Organization;
+            RegistrationNumber = temp.RegistrationNumber;
+            Topic = temp.Topic;
+            TimeFrame = temp.TimeFrame;
+
+            Participants.Clear();
+            foreach (var person in temp.Participants)
+            {
+                Participants.Add(person);
+            }
+
+            Publications.Clear();
+            foreach (var paper in temp.Publications.OfType<Paper>())
+            {
+                Publications.Add(paper);
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading from file: {ex.Message}");
+            return false;
+        }
+    }
+
+    public bool AddFromConsole()
+    {
+        Console.WriteLine("Додавання нової публікації");
+        Console.WriteLine("Введіть дані у форматі: 'Назва публікації;Ім'я автора;Прізвище автора;Дата народження (DD.MM.YYYY);Дата публікації (DD.MM.YYYY)'");
+        Console.WriteLine("Приклад: 'Наукова стаття;Іван;Петренко;01.01.1990;15.06.2023'");
+
+        var input = Console.ReadLine();
+
+        try
+        {
+            var parts = input?.Split(';');
+            if (parts != null && parts.Length != 5)
+            {
+                throw new FormatException("Неправильна кількість параметрів");
+            }
+
+            if (parts != null)
+            {
+                var title = parts[0].Trim();
+                var firstName = parts[1].Trim();
+                var lastName = parts[2].Trim();
+                var birthDate = DateTime.Parse(parts[3].Trim());
+                var publicationDate = DateTime.Parse(parts[4].Trim());
+
+                var author = new Person(firstName, lastName, birthDate);
+                var paper = new Paper(title, author, publicationDate);
+
+                Publications.Add(paper);
+            }
+
+            Console.WriteLine("Публікацію успішно додано!");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка при додаванні публікації: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static bool Save(string? filename, ResearchTeam? team)
+    {
+        return team != null && team.Save(filename);
+    }
+
+    public static bool Load(string? filename, ResearchTeam? team)
+    {
+        return team is not null && team.Load(filename);
     }
 
     public override string ToString()
     {
-        string participants = string.Join("\n  ", _participants.Select(p => p.Name));
-        string publications = string.Join("\n  ", _publications.Select(p => p.Title));
-        return $"ResearchTeam: {Organization}, RegNumber: {RegNumber}, Topic: {_researchTopic}, Duration: {_duration}\n" +
-               $"Participants ({_participants.Count}):\n  {participants}\n" +
-               $"Publications ({_publications.Count}):\n  {publications}";
+        var result = $"{base.ToString()}, Тема: {Topic}, Тривалість: {TimeFrame}\n";
+
+        result += "Учасники:\n";
+        if (Participants.Count > 0)
+        {
+            foreach (Person person in Participants)
+            {
+                result += $"- {person}\n";
+            }
+        }
+        else
+        {
+            result += "- Немає учасників\n";
+        }
+
+        result += "Публікації:\n";
+        if (Publications.Count > 0)
+        {
+            foreach (Paper? paper in Publications)
+            {
+                result += $"- {paper}\n";
+            }
+        }
+        else
+        {
+            result += "- Немає публікацій\n";
+        }
+
+        return result;
     }
 
-    public string ToShortString()
+    public virtual string ToShortString()
     {
-        return $"ResearchTeam: {Organization}, RegNumber: {RegNumber}, Topic: {_researchTopic}, " +
-               $"Duration: {_duration}, Participants: {_participants.Count}, Publications: {_publications.Count}";
+        return $"{base.ToString()}, Тема: {Topic}, Тривалість: {TimeFrame}, Кількість учасників: {Participants.Count}, Кількість публікацій: {Publications.Count}";
     }
 
-    public IEnumerable<Person> GetParticipantsWithoutPublications()
+    public int CompareTo(ResearchTeam? other)
     {
-        return _participants.Where(p => !_publications.Any(pub => pub.Author.Equals(p)));
-    }
-
-    public IEnumerable<Paper> GetPublicationsInLastYears(int years)
-    {
-        DateTime now = DateTime.Now;
-        return _publications.Where(p => (now - p.PublishDate).TotalDays <= years * 365);
-    }
-
-    public IEnumerable<Person> GetParticipantsWithMultiplePublications()
-    {
-        return _participants.Where(p => _publications.Count(pub => pub.Author.Equals(p)) > 1);
-    }
-
-    public IEnumerable<Paper> GetPublicationsInLastYear()
-    {
-        return GetPublicationsInLastYears(1);
-    }
-
-    public IEnumerator<Person> GetEnumerator()
-    {
-        return new ResearchTeamEnumerator(this);
-    }
-
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return GetEnumerator();
+        return other == null ? 1 : RegistrationNumber.CompareTo(other.RegistrationNumber);
     }
 
     public int Compare(ResearchTeam? x, ResearchTeam? y)
@@ -113,42 +248,7 @@ class ResearchTeam : Team, IEnumerable<Person>, IComparer<ResearchTeam>
         if (x == null && y == null) return 0;
         if (x == null) return -1;
         if (y == null) return 1;
-        return string.Compare(x._researchTopic, y._researchTopic, StringComparison.Ordinal);
-    }
 
-    private class ResearchTeamEnumerator : IEnumerator<Person>
-    {
-        private readonly ResearchTeam _researchTeam;
-        private int _index = -1;
-
-        public ResearchTeamEnumerator(ResearchTeam researchTeam)
-        {
-            _researchTeam = researchTeam;
-        }
-
-        public Person Current => _researchTeam.Participants[_index];
-
-        object IEnumerator.Current => Current;
-
-        public bool MoveNext()
-        {
-            while (++_index < _researchTeam.Participants.Count)
-            {
-                if (_researchTeam.Publications.Any(p => p.Author.Equals(_researchTeam.Participants[_index])))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        public void Reset()
-        {
-            _index = -1;
-        }
-
-        public void Dispose()
-        {
-        }
+        return string.CompareOrdinal(x.Topic, y.Topic);
     }
 }

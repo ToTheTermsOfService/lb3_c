@@ -1,72 +1,103 @@
 ﻿using Lb3;
-using Lb3.Collections;
 using Lb3.Helpers;
 class Program
 {
     static void Main()
     {
-        ResearchTeamCollection collection = new ResearchTeamCollection();
-        collection.AddDefaults();
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        ResearchTeam rt1 = new ResearchTeam("AI Lab", 10, "Artificial Intelligence", TimeFrame.TwoYears);
-        rt1.AddParticipants(new Person { FirstName = "John", LastName = "Doe", BirthDate = new DateTime(1980, 1, 1) });
-        rt1.AddPapers(new Paper { Title = "AI Advances", Author = new Person { FirstName = "John", LastName = "Doe", BirthDate = new DateTime(1980, 1, 1) }, PublishDate = DateTime.Now });
-
-        ResearchTeam rt2 = new ResearchTeam("Bio Lab", 5, "Biology Research", TimeFrame.Long);
-        rt2.AddParticipants(
-            new Person { FirstName = "Alice", LastName = "Smith", BirthDate = new DateTime(1975, 5, 5) },
-            new Person { FirstName = "Bob", LastName = "Johnson", BirthDate = new DateTime(1985, 10, 10) }
-        );
-        rt2.AddPapers(
-            new Paper { Title = "Cell Biology", Author = new Person { FirstName = "Alice", LastName = "Smith", BirthDate = new DateTime(1975, 5, 5) }, PublishDate = DateTime.Now.AddMonths(-6) },
-            new Paper { Title = "Genetics", Author = new Person { FirstName = "Alice", LastName = "Smith", BirthDate = new DateTime(1975, 5, 5) }, PublishDate = DateTime.Now.AddMonths(-3) }
+        ResearchTeam originalTeam = new ResearchTeam(
+            "Київський Політехнічний Інститут",
+            12345,
+            "Дослідження штучного інтелекту",
+            TimeFrame.TwoYears
         );
 
-        collection.AddResearchTeams(rt1, rt2);
+        originalTeam.AddPapers(
+            new Paper("Розвиток нейронних мереж", new Person("Іван", "Ковальчук", new DateTime(1985, 5, 15)), new DateTime(2023, 3, 10)),
+            new Paper("Машинне навчання в медицині", new Person("Олена", "Петренко", new DateTime(1990, 8, 22)), new DateTime(2023, 5, 5))
+        );
 
-        Console.WriteLine("\nFull collection:");
-        Console.WriteLine(collection.ToString());
+        ResearchTeam copiedTeam;
 
-        Console.WriteLine("\nShort info:");
-        Console.WriteLine(collection.ToShortList());
-
-        Console.WriteLine("\nSorted by registration number:");
-        collection.SortByRegNumber();
-        Console.WriteLine(collection.ToShortList());
-
-        Console.WriteLine("\nSorted by research topic:");
-        collection.SortByResearchTopic();
-        Console.WriteLine(collection.ToShortList());
-
-        Console.WriteLine("\nSorted by publications count:");
-        collection.SortByPublicationsCount();
-        Console.WriteLine(collection.ToShortList());
-
-        Console.WriteLine($"\nMin registration number: {collection.MinRegNumber}");
-
-        Console.WriteLine("\nTeams with TwoYears duration:");
-        foreach (var team in collection.TwoYearsDurationTeams)
+        try
         {
-            Console.WriteLine(team.ToShortString());
+            copiedTeam = (ResearchTeam)originalTeam.DeepCopy();
+        }
+        catch
+        {
+            Console.WriteLine("Failed to make a deep copy of an original team.");
+            return;
         }
 
-        Console.WriteLine("\nTeams grouped by participant count:");
-        var grouped = collection.NGroup(2);
-        foreach (var team in grouped)
+        Console.WriteLine("=== Оригінальний об'єкт: ===");
+        Console.WriteLine(originalTeam);
+
+        Console.WriteLine("=== Копія об'єкту: ===");
+        Console.WriteLine(copiedTeam);
+
+        Console.WriteLine("\n=== Робота з файлами ===");
+        Console.Write("Введіть ім'я файлу для збереження/завантаження даних: ");
+        string? filename = Console.ReadLine();
+
+        if (!File.Exists(filename))
         {
-            Console.WriteLine(team.ToShortString());
+            Console.WriteLine($"Файл '{filename}' не знайдено. Cтворюю новий файл...");
+            if (filename != null) originalTeam.Save(filename);
+            Console.WriteLine("Файл успішно створено та збережено дані.");
+        }
+        else
+        {
+            Console.WriteLine($"Файл '{filename}' існує. Завантажую дані...");
+            Console.WriteLine(originalTeam.Load(filename) ? "Дані успішно завантажено." : "Помилка при завантаженні даних.");
         }
 
-        Console.WriteLine("\n=== TestCollections Demo ===");
-        Console.Write("Enter number of elements for TestCollections: ");
-        int count;
-        while (!int.TryParse(Console.ReadLine(), out count) || count <= 0)
+        Console.WriteLine("\n=== Поточний стан об'єкту: ===");
+        Console.WriteLine(originalTeam);
+
+        Console.WriteLine("\n=== Додавання нової публікації ===");
+        if (originalTeam.AddFromConsole())
         {
-            Console.WriteLine("Invalid input. Please enter a positive integer.");
-            Console.Write("Enter number of elements for TestCollections: ");
+            Console.WriteLine("Збереження змін у файлі...");
+            if (filename != null && originalTeam.Save(filename))
+            {
+                Console.WriteLine("Зміни успішно збережено.");
+            }
+            else
+            {
+                Console.WriteLine("Помилка при збереженні змін.");
+            }
         }
 
-        TestCollections testCollections = new TestCollections(count);
-        testCollections.MeasureSearchTime();
+        Console.WriteLine("\n=== Оновлений стан об'єкту: ===");
+        Console.WriteLine(originalTeam);
+
+        Console.WriteLine("\n=== Використання статичних методів ===");
+
+        if (filename != null && ResearchTeam.Load(filename, originalTeam))
+        {
+            Console.WriteLine("Дані успішно завантажено за допомогою статичного методу.");
+        }
+        else
+        {
+            Console.WriteLine("Помилка при завантаженні даних за допомогою статичного методу.");
+        }
+
+        Console.WriteLine("\n=== Додавання нової публікації (статичний цикл) ===");
+        if (originalTeam.AddFromConsole())
+        {
+            Console.WriteLine("Збереження змін у файлі за допомогою статичного методу...");
+            if (filename != null && ResearchTeam.Save(filename, originalTeam))
+            {
+                Console.WriteLine("Зміни успішно збережено за допомогою статичного методу.");
+            }
+            else
+            {
+                Console.WriteLine("Помилка при збереженні змін за допомогою статичного методу.");
+            }
+        }
+
+        Console.WriteLine("\n=== Фінальний стан об'єкту: ===");
+        Console.WriteLine(originalTeam);
     }
 }

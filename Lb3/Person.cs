@@ -1,18 +1,72 @@
 ﻿using Lb3.Interfaces;
 
 namespace Lb3;
-class Person : INameAndCopy
+[Serializable]
+public class Person
 {
-    public required string FirstName { get; set; }
-    public required string LastName { get; set; }
-    public DateTime BirthDate { get; set; }
-    public string Name { get => FirstName + " " + LastName; set { } }
+    private string _firstName;
+    private string _lastName;
+    private DateTime _birthDate;
+
+    public Person()
+    {
+        _firstName = "Дід";
+        _lastName = "Мороз";
+        _birthDate = new DateTime(2005, 5, 5);
+    }
+
+    public Person(string firstName, string lastName, DateTime birthDate)
+    {
+        FirstName = firstName;
+        LastName = lastName;
+        BirthDate = birthDate;
+    }
+
+    public string FirstName
+    {
+        get => _firstName;
+        set => _firstName = value;
+    }
+
+    public string LastName
+    {
+        get => _lastName;
+        set => _lastName = value;
+    }
+
+    public DateTime BirthDate
+    {
+        get => _birthDate;
+        set => _birthDate = value;
+    }
+
+    public int BirthYear
+    {
+        get => BirthDate.Year;
+        set => BirthDate = BirthDate.AddYears(value - BirthDate.Year);
+    }
 
     public override bool Equals(object? obj)
     {
-        if (obj is Person other)
-            return FirstName == other.FirstName && LastName == other.LastName && BirthDate == other.BirthDate;
-        return false;
+        if (obj == null || GetType() != obj.GetType())
+            return false;
+
+        Person other = (Person)obj;
+        return FirstName == other.FirstName &&
+               LastName == other.LastName &&
+               BirthDate == other.BirthDate;
+    }
+
+    public static bool operator ==(Person? left, Person? right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (left is null || right is null) return false;
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(Person? left, Person? right)
+    {
+        return !(left == right);
     }
 
     public override int GetHashCode()
@@ -20,18 +74,15 @@ class Person : INameAndCopy
         return HashCode.Combine(FirstName, LastName, BirthDate);
     }
 
-    public static bool operator ==(Person? p1, Person? p2)
+    public virtual object DeepCopy() => new Person(FirstName, LastName, BirthDate);
+
+    public override string ToString()
     {
-        return Equals(p1, p2);
+        return $"{FirstName} {LastName}, народжений(-а) {BirthDate:d}";
     }
 
-    public static bool operator !=(Person? p1, Person? p2)
+    public virtual string ToShortString()
     {
-        return !Equals(p1, p2);
-    }
-
-    public virtual object DeepCopy()
-    {
-        return new Person { FirstName = FirstName, LastName = LastName, BirthDate = BirthDate };
+        return $"{FirstName} {LastName}";
     }
 }
